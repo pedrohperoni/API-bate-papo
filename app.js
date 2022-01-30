@@ -78,10 +78,17 @@ app.post("/participants", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
+  const limit = parseInt(req.query.limit);
+  const user = req.headers.user;
+
   try {
     const messages = await db.collection("messages").find().toArray();
-    console.log(messages);
-    res.send(messages);
+    const userMessages = messages.filter(
+      (message) =>
+        message.from === user || message.to === user || message.to === "Todos"
+    );
+
+    res.send(userMessages);
   } catch (error) {
     console.error(error);
     res.sendStatus(500);
@@ -89,10 +96,10 @@ app.get("/messages", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
+  console.log("tentando");
   const message = req.body;
   const user = req.headers.user;
   const currentTime = dayjs().format("HH:mm:ss");
-  console.log(req.body);
   let messageType = message.type;
   if (message.to !== "Todos") {
     messageType = "private_message";
@@ -118,6 +125,16 @@ app.post("/messages", async (req, res) => {
       type: messageType,
       time: currentTime,
     });
+    console.log(
+      "from",
+      user,
+      "to",
+      message.to,
+      "text",
+      message.text,
+      "type",
+      messageType
+    );
     res.sendStatus(201);
   } catch (error) {
     res.sendStatus(500);
