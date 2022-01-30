@@ -25,7 +25,7 @@ const participantsSchema = joi.object({
 const messageSchema = joi.object({
   to: joi.string().required(),
   text: joi.string().required(),
-  type: joi.string().required().valid("message", "private_message"),
+  type: joi.string().required(),
 });
 
 app.get("/participants", async (req, res) => {
@@ -80,6 +80,7 @@ app.post("/participants", async (req, res) => {
 app.get("/messages", async (req, res) => {
   try {
     const messages = await db.collection("messages").find().toArray();
+    console.log(messages);
     res.send(messages);
   } catch (error) {
     console.error(error);
@@ -91,6 +92,11 @@ app.post("/messages", async (req, res) => {
   const message = req.body;
   const user = req.headers.user;
   const currentTime = dayjs().format("HH:mm:ss");
+  console.log(req.body);
+  let messageType = message.type;
+  if (message.to !== "Todos") {
+    messageType = "private_message";
+  }
 
   const validation = messageSchema.validate(message);
   if (validation.error) {
@@ -109,7 +115,7 @@ app.post("/messages", async (req, res) => {
       from: user,
       to: message.to,
       text: message.text,
-      type: message.type,
+      type: messageType,
       time: currentTime,
     });
     res.sendStatus(201);
