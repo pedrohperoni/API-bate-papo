@@ -107,16 +107,6 @@ app.post("/messages", async (req, res) => {
       type: messageType,
       time: currentTime,
     });
-    console.log(
-      "from",
-      user,
-      "to",
-      message.to,
-      "text",
-      message.text,
-      "type",
-      messageType
-    );
     res.sendStatus(201);
   } catch (error) {
     res.sendStatus(500);
@@ -145,6 +135,7 @@ app.get("/messages", async (req, res) => {
 
 app.post("/status", async (req, res) => {
   const user = req.headers.user;
+  const currentDate = Date.now();
   const checkUser = await db
     .collection("participants")
     .findOne({ name: req.headers.user });
@@ -155,13 +146,33 @@ app.post("/status", async (req, res) => {
   try {
     await db
       .collection("participants")
-      .updateOne({ name: user }, { $set: { lastStatus: dateNow } });
+      .updateOne({ name: user }, { $set: { lastStatus: currentDate } });
     res.sendStatus(200);
   } catch {
     res.sendStatus(404);
     return;
   }
 });
+
+setInterval(async () => {
+  const participants = await db.collection("participants").find().toArray();
+  const currentTime = dayjs().format("HH:mm:ss");
+  const currentDate = Date.now();
+  console.log(participants);
+  for (let i = 0; i < participants.length; i++) {
+    if (participants[i].lastStatus < currentDate - 10000) {
+      const user = participants[i].name;
+      await db.collection("participants").deleteOne({ name: user });
+      await db.collection("messages").insertOne({
+        from: user,
+        to: "Todos",
+        text: "sai da sala...",
+        type: "status",
+        time: currentTime,
+      });
+    }
+  }
+}, 15000);
 
 app.listen(5000, () => {
   console.log("Server listening on port", 5000);
