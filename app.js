@@ -54,13 +54,13 @@ app.post("/participants", async (req, res) => {
 
   if (nameAlreadyExists) {
     res.status(409).send("Usuário já cadastrado.");
+    return;
   }
 
   try {
     await db
       .collection("participants")
       .insertOne({ name: participant.name, lastStatus: Date.now() });
-    console.log(Date.now());
     await db.collection("messages").insertOne({
       from: participant.name,
       to: "Todos",
