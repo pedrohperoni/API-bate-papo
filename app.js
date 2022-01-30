@@ -53,7 +53,7 @@ app.post("/participants", async (req, res) => {
     .findOne({ name: participant.name });
 
   if (nameAlreadyExists) {
-    res.status(409).send("Usuário já cadastrado.");
+    res.status(409).send("Usuário já cadastrado, tente outro nome.");
     return;
   }
 
@@ -74,24 +74,6 @@ app.post("/participants", async (req, res) => {
     console.error(error);
     res.sendStatus(500);
     return;
-  }
-});
-
-app.get("/messages", async (req, res) => {
-  const limit = parseInt(req.query.limit);
-  const user = req.headers.user;
-
-  try {
-    const messages = await db.collection("messages").find().toArray();
-    const userMessages = messages.filter(
-      (message) =>
-        message.from === user || message.to === user || message.to === "Todos"
-    );
-
-    res.send(userMessages);
-  } catch (error) {
-    console.error(error);
-    res.sendStatus(500);
   }
 });
 
@@ -142,7 +124,44 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-app.post("/status", (req, res) => {});
+app.get("/messages", async (req, res) => {
+  const limit = parseInt(req.query.limit);
+  const user = req.headers.user;
+
+  try {
+    const messages = await db.collection("messages").find().toArray();
+    const userMessages = messages.filter(
+      (message) =>
+        message.from === user || message.to === user || message.to === "Todos"
+    );
+    const limitMessages = userMessages.slice(-limit);
+
+    res.send(limitMessages);
+  } catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
+
+app.post("/status", async (req, res) => {
+  const user = req.headers.user;
+  const checkUser = await db
+    .collection("participants")
+    .findOne({ name: req.headers.user });
+  if (!checkUser) {
+    res.sendStatus(404);
+    return;
+  }
+  try {
+    await db
+      .collection("participants")
+      .updateOne({ name: user }, { $set: { lastStatus: dateNow } });
+    res.sendStatus(200);
+  } catch {
+    res.sendStatus(404);
+    return;
+  }
+});
 
 app.listen(5000, () => {
   console.log("Server listening on port", 5000);
