@@ -73,6 +73,7 @@ app.post("/participants", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.sendStatus(500);
+    return;
   }
 });
 
@@ -86,7 +87,37 @@ app.get("/messages", async (req, res) => {
   }
 });
 
-app.post("/messages", (req, res) => {});
+app.post("/messages", async (req, res) => {
+  const message = req.body;
+  const user = req.headers.user;
+  const currentTime = dayjs().format("HH:mm:ss");
+
+  const validation = messageSchema.validate(message);
+  if (validation.error) {
+    res.sendStatus(422);
+    return;
+  }
+
+  const checkUser = await db.collection("participants").findOne({ name: user });
+  if (!checkUser) {
+    res.sendStatus(422);
+    return;
+  }
+
+  try {
+    await db.collection("messages").insertOne({
+      from: user,
+      to: message.to,
+      text: message.text,
+      type: message.type,
+      time: currentTime,
+    });
+    res.sendStatus(201);
+  } catch (error) {
+    res.sendStatus(500);
+    return;
+  }
+});
 
 app.post("/status", (req, res) => {});
 
