@@ -28,16 +28,6 @@ const messageSchema = joi.object({
   type: joi.string().required(),
 });
 
-app.get("/participants", async (req, res) => {
-  try {
-    const participants = await db.collection("participants").find().toArray();
-    res.send(participants);
-  } catch (error) {
-    console.error(error);
-    res.sendStatus(500);
-  }
-});
-
 app.post("/participants", async (req, res) => {
   const participant = req.body;
   const currentTime = dayjs().format("HH:mm:ss");
@@ -58,9 +48,10 @@ app.post("/participants", async (req, res) => {
   }
 
   try {
-    await db
-      .collection("participants")
-      .insertOne({ name: participant.name, lastStatus: Date.now() });
+    await db.collection("participants").insertOne({
+      name: participant.name,
+      lastStatus: Date.now(),
+    });
     await db.collection("messages").insertOne({
       from: participant.name,
       to: "Todos",
@@ -77,8 +68,17 @@ app.post("/participants", async (req, res) => {
   }
 });
 
+app.get("/participants", async (req, res) => {
+  try {
+    const participants = await db.collection("participants").find({}).toArray();
+    res.send(participants);
+  } catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
+
 app.post("/messages", async (req, res) => {
-  console.log("tentando");
   const message = req.body;
   const user = req.headers.user;
   const currentTime = dayjs().format("HH:mm:ss");
@@ -119,12 +119,16 @@ app.get("/messages", async (req, res) => {
   const user = req.headers.user;
 
   try {
-    const messages = await db.collection("messages").find().toArray();
+    const messages = await db.collection("messages").find({}).toArray();
     const userMessages = messages.filter(
       (message) =>
         message.from === user || message.to === user || message.to === "Todos"
     );
-    const limitMessages = userMessages.slice(-limit);
+
+    let limitMessages = userMessages;
+    if (limit) {
+      limitMessages = userMessages.slice(-limit);
+    }
 
     res.send(limitMessages);
   } catch (error) {
@@ -136,29 +140,32 @@ app.get("/messages", async (req, res) => {
 app.post("/status", async (req, res) => {
   const user = req.headers.user;
   const currentDate = Date.now();
+
   const checkUser = await db
     .collection("participants")
     .findOne({ name: req.headers.user });
+
   if (!checkUser) {
     res.sendStatus(404);
     return;
   }
+
   try {
     await db
       .collection("participants")
       .updateOne({ name: user }, { $set: { lastStatus: currentDate } });
     res.sendStatus(200);
   } catch {
-    res.sendStatus(404);
+    res.sendStatus(500);
     return;
   }
 });
 
 setInterval(async () => {
-  const participants = await db.collection("participants").find().toArray();
+  const participants = await db.collection("participants").find({}).toArray();
   const currentTime = dayjs().format("HH:mm:ss");
   const currentDate = Date.now();
-  console.log(participants);
+
   for (let i = 0; i < participants.length; i++) {
     if (participants[i].lastStatus < currentDate - 10000) {
       const user = participants[i].name;
